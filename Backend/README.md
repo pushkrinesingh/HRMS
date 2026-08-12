@@ -1,6 +1,6 @@
 # HRMS (Human Resource Management System) Backend
 
-A robust and scalable Node.js and Express-based backend API for a Human Resource Management System (HRMS). Built using ES Modules and structured with clean separation of concerns, this system is designed to handle key HR workflows (including Employee Management, Attendance, Leave Requests, and Payroll) using a role-based access control model catering to Administrators, Managers, and Employees.
+A robust and scalable Node.js and Express-based backend API for a Human Resource Management System (HRMS). Built using ES Modules and structured with clean separation of concerns, this system handles key HR workflows (including Employee Directory, Department Management, Team View, and Role-Based Access Control) catering to Administrators, Managers, and Employees.
 
 ---
 
@@ -28,9 +28,11 @@ The backend uses the following technologies and dependencies as defined in [pack
 - [x] API Health-Check Route (`GET /api/health`)
 - [x] User & Authentication Module (Module 1)
 - [x] Role-Based Access Control (RBAC) in `authMiddleware` (Module 1)
+- [x] Role Management Endpoint (`PATCH /api/auth/users/:id/role`)
 - [x] Employee Directory & Department Management (Module 2)
+- [x] Unified Profile Architecture (`Employee` model & `createProfileForRole` helper)
+- [x] Self Profile & Direct Reports / Team Retrieval (`GET /api/employees/me`, `GET /api/employees/my-team`)
 - [x] Interactive API documentation via Swagger UI
-- [x] Profile Role Collections (Admin, Manager, Employee)
 - [x] Administrative account seeding script
 - [ ] Attendance & Leave Tracker (Module 3 - Planned)
 - [ ] Payroll Management System (Module 4 - Planned)
@@ -53,17 +55,17 @@ Backend/
 ├── middleware/         # Custom Express middleware
 │   └── authMiddleware.js
 ├── models/             # Mongoose schemas & data models
-│   ├── Admin.js
-│   ├── Department.js
-│   ├── Employee.js
-│   ├── Manager.js
-│   └── User.js
+│   ├── Department.js   # Department schema definition
+│   ├── Employee.js     # Unified employee/staff profile schema
+│   └── User.js         # Core authentication & user schema
 ├── routes/             # Express API route definitions
-│   ├── authRoutes.js
-│   ├── departmentRoutes.js
-│   └── employeeRoutes.js
+│   ├── authRoutes.js   # Authentication & user role routes
+│   ├── departmentRoutes.js # Department management routes
+│   └── employeeRoutes.js   # Employee & team management routes
 ├── scripts/            # Database utility scripts
 │   └── seedAdmin.js    # Initial Admin account creation script
+├── utils/              # Helper utilities
+│   └── createProfileForRole.js # Utility for provisioning employee profiles
 ├── .env                # Local environment variables (git-ignored)
 ├── .env.example        # Example environmental configuration template
 ├── .gitignore          # Config for Git to ignore dependency & secret files
@@ -130,19 +132,22 @@ Once running, you can access the interactive API docs at:
 | Method | Endpoint | Auth Required | Role Access | Description | Expected Request Body |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/health` | No | Public | Returns the health and database status of the server. | None |
-| `POST` | `/api/auth/register` | Yes (Access Cookie) | `admin` | Registers a new user account and dynamic profile record. | `{ "name": "...", "email": "...", "password": "...", "role": "..." }` (and optional profile fields) |
+| `POST` | `/api/auth/register` | Yes (Access Cookie) | `admin` | Registers a new user account and creates an employee profile. | `{ "name": "...", "email": "...", "password": "...", "role": "..." }` |
 | `POST` | `/api/auth/login` | No | Public | Authenticates credentials. Sets `accessToken` and `refreshToken` cookies. | `{ "email": "...", "password": "..." }` |
-| `POST` | `/api/auth/refresh` | No | Public | Refreshes and returns/sets a new `accessToken` cookie. | None (reads refresh token from cookie) |
+| `POST` | `/api/auth/refresh` | No | Public | Refreshes and sets a new `accessToken` cookie. | None (reads refresh token from cookie) |
 | `POST` | `/api/auth/logout` | No | Public | Clears `accessToken` and `refreshToken` cookies from browser. | None |
 | `GET` | `/api/auth/me` | Yes (Access Cookie) | Any Role | Retrieves details of the logged-in user profile (no password). | None |
+| `PATCH` | `/api/auth/users/:id/role` | Yes (Access Cookie) | `admin` | Updates the specified user's system role. | `{ "role": "admin" \| "manager" \| "employee" }` |
 | `POST` | `/api/departments` | Yes (Access Cookie) | `admin` | Creates a new department. | `{ "name": "..." }` |
-| `GET` | `/api/departments` | Yes (Access Cookie) | Any Role | Retrieves a list of all departments. | None |
-| `POST` | `/api/employees` | Yes (Access Cookie) | `admin` | Provisions a new Admin, Manager, or Employee user and profile dynamically. | `{ "name": "...", "email": "...", "password": "...", "role": "..." }` |
-| `GET` | `/api/employees` | Yes (Access Cookie) | `admin`, `manager` | Retrieves all employees (fully populated with User/Dept details). | None |
+| `GET` | `/api/departments` | Yes (Access Cookie) | Any Role | Retrieves a list of all active departments. | None |
+| `POST` | `/api/employees` | Yes (Access Cookie) | `admin` | Provisions a new user account and employee profile dynamically. | `{ "name": "...", "email": "...", "password": "...", "role": "...", "department": "...", "designation": "..." }` |
+| `GET` | `/api/employees` | Yes (Access Cookie) | `admin` | Retrieves all active employees (populated with User, Dept, Manager). | None |
+| `GET` | `/api/employees/me` | Yes (Access Cookie) | Any Role | Retrieves the employee profile for the currently logged-in user. | None |
+| `GET` | `/api/employees/my-team` | Yes (Access Cookie) | Any Role | Retrieves list of employees who report directly to the logged-in user. | None |
 | `GET` | `/api/employees/stats/department-count` | Yes (Access Cookie) | `admin` | Aggregates and returns employee headcount grouped by department. | None |
-| `GET` | `/api/employees/:id` | Yes (Access Cookie) | `admin`, `manager` | Retrieves a single employee's details by ID. | None |
-| `PUT` | `/api/employees/:id` | Yes (Access Cookie) | `admin` | Updates employee details. | `{ "designation": "...", "salary": { "basic": 0, "hra": 0 } }` (partial) |
-| `DELETE` | `/api/employees/:id` | Yes (Access Cookie) | `admin` | Deletes an employee record. | None |
+| `GET` | `/api/employees/:id` | Yes (Access Cookie) | `admin`, `manager` | Retrieves a single employee record by ID. | None |
+| `PUT` | `/api/employees/:id` | Yes (Access Cookie) | `admin` | Updates employee profile details. | `{ "designation": "...", "salary": { "basic": 0, "hra": 0 } }` (partial) |
+| `DELETE` | `/api/employees/:id` | Yes (Access Cookie) | `admin` | Soft deletes an employee record (`isActive: false`). | None |
 
 ---
 
@@ -152,7 +157,7 @@ Once running, you can access the interactive API docs at:
    * **Access Token**: Short-lived JWT (`15m` expiry) stored in a secure `httpOnly` cookie (`accessToken`), containing user ID and role for RBAC.
    * **Refresh Token**: Long-lived JWT (`7d` expiry) stored in a secure `httpOnly` cookie (`refreshToken`), containing user ID.
 2. **Access Control**:
-   * The `authMiddleware` extracts and validates the `accessToken` from cookies, populating `req.user`. It also checks if the user's role satisfies any configured route constraints directly, returning `403 Forbidden` if unauthorized.
+   * The `authMiddleware` extracts and validates the `accessToken` from cookies, populating `req.user`. It checks if the user's role satisfies configured route constraints, returning `403 Forbidden` if unauthorized.
 3. **Token Rotation / Refresh**:
    * When the access token expires, the client calls `/api/auth/refresh` to automatically read the refresh cookie and issue a new access token.
 
@@ -160,10 +165,11 @@ Once running, you can access the interactive API docs at:
 
 ## User Roles & Permissions
 
-The system implements role-based routing constraints across three main roles:
+The system implements role-based access control across three main roles defined on the `User` schema:
 
 | Role | Permissions Overview | Status |
 | :--- | :--- | :--- |
-| **Admin** | Full system access. Create departments, register/provision users, update/delete profiles, view department count aggregation stats. | *Implemented* |
-| **Manager** | View all employee records and individual employee records. Access to read-only listings. | *Implemented* |
-| **Employee** | Access to own profile data (`/me`). No manager or admin features. | *Implemented* |
+| **Admin** | Full system access. Create departments, register/provision accounts, update/delete profiles, modify user roles, view department count aggregation stats. | *Implemented* |
+| **Manager** | View individual employee records by ID, inspect own profile (`/me`), and view direct reports (`/my-team`). Read-only team visibility. | *Implemented* |
+| **Employee** | Access to own user profile (`/me`), own employee profile (`/employees/me`), and direct team (`/my-team`). | *Implemented* |
+
