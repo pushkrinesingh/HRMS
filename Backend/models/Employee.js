@@ -18,7 +18,7 @@ const employeeSchema = new mongoose.Schema(
     },
     manager: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Manager",
+      ref: "Employee",
     },
     joiningDate: {
       type: Date,
@@ -31,11 +31,20 @@ const employeeSchema = new mongoose.Schema(
         type: Number,
       },
     },
-    createdAt: {
-      type: Date,
-      default: Date.now,
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
-  }
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { timestamps: true }
 );
 
 const Employee = mongoose.model("Employee", employeeSchema);

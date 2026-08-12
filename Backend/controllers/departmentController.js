@@ -12,7 +12,10 @@ export const createDepartment = async (req, res) => {
       });
     }
 
-    const department = new Department({ name });
+    const department = new Department({
+      name,
+      createdBy: req.user?.id || null,
+    });
     await department.save();
 
     return res.status(201).json({
@@ -30,7 +33,7 @@ export const createDepartment = async (req, res) => {
 
 export const getAllDepartments = async (req, res) => {
   try {
-    const departments = await Department.find();
+    const departments = await Department.find({ isActive: true });
     
     return res.status(200).json({
       success: true,

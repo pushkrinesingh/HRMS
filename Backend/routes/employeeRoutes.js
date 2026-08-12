@@ -6,6 +6,8 @@ import {
   updateEmployee,
   deleteEmployee,
   getDepartmentEmployeeCounts,
+  getMyProfile,
+  getMyTeam,
 } from "../controllers/employeeController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -13,7 +15,11 @@ const router = express.Router();
 
 router.post("/", authMiddleware("admin"), createEmployee);
 
-router.get("/", authMiddleware(["admin", "manager"]), getAllEmployees);
+router.get("/", authMiddleware("admin"), getAllEmployees);
+
+router.get("/me", authMiddleware(), getMyProfile);
+
+router.get("/my-team", authMiddleware(), getMyTeam);
 
 router.get(
   "/stats/department-count",

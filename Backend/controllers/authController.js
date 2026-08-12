@@ -1,9 +1,7 @@
 import User from "../models/User.js";
-import Admin from "../models/Admin.js";
-import Manager from "../models/Manager.js";
-import Employee from "../models/Employee.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { createProfileForRole } from "../utils/createProfileForRole.js";
 
 export const register = async (req, res) => {
   const { name, email, password, role, department, designation, manager, joiningDate, salary } = req.body;
@@ -17,46 +15,26 @@ export const register = async (req, res) => {
       });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
     const user = new User({
       name,
       email,
-      password: hashedPassword,
+      password,
       role: role || "employee",
+      createdBy: req.user?.id || null,
     });
 
     await user.save();
 
-    let profileData = null;
-    const finalRole = user.role;
-
-    if (finalRole === "admin") {
-      const admin = new Admin({ user: user._id });
-      await admin.save();
-      profileData = admin;
-    } else if (finalRole === "manager") {
-      const managerProfile = new Manager({
-        user: user._id,
-        department,
-        designation,
-        salary,
-      });
-      await managerProfile.save();
-      profileData = managerProfile;
-    } else if (finalRole === "employee") {
-      const employee = new Employee({
-        user: user._id,
-        department,
-        designation,
-        manager: manager || null,
-        joiningDate,
-        salary,
-      });
-      await employee.save();
-      profileData = employee;
-    }
+    const profileData = await createProfileForRole({
+      userId: user._id,
+      role: user.role,
+      department,
+      designation,
+      manager,
+      joiningDate,
+      salary,
+      createdBy: req.user?.id || null,
+    });
 
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -70,7 +48,7 @@ export const register = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.status || 500).json({
       success: false,
       message: error.message || "Internal Server Error",
     });
@@ -227,6 +205,44 @@ export const me = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+    });
+  }
+};
+
+export const updateUserRole = async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  if (!["admin", "manager", "employee"].includes(role)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid role specified",
+    });
+  }
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      id,
+      { role, updatedBy: req.user?.id || null },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "User role updated successfully",
+      data: user,
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
       success: false,
       message: error.message || "Internal Server Error",
     });

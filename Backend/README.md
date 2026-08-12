@@ -6,7 +6,7 @@ A robust and scalable Node.js and Express-based backend API for a Human Resource
 
 ## Tech Stack
 
-The backend uses the following technologies and dependencies as defined in [package.json](file:///home/pushkrine/FSL/BACKEND/HRMS/Backend/package.json):
+The backend uses the following technologies and dependencies as defined in [package.json](./package.json):
 
 * **Express (v5.2.1)**: A minimal and flexible web application framework for building routing and API controllers.
 * **Mongoose (v9.9.1)**: MongoDB object modeling tool designed to work in an asynchronous environment for schema definitions and queries.
@@ -22,8 +22,8 @@ The backend uses the following technologies and dependencies as defined in [pack
 
 ## Project Status & Progress
 
-- [x] Express Application Initialization ([server.js](file:///home/pushkrine/FSL/BACKEND/HRMS/Backend/server.js))
-- [x] Database Connection Configuration ([config/db.js](file:///home/pushkrine/FSL/BACKEND/HRMS/Backend/config/db.js))
+- [x] Express Application Initialization ([server.js](./server.js))
+- [x] Database Connection Configuration ([config/db.js](./config/db.js))
 - [x] Database Environment Variable Validation
 - [x] API Health-Check Route (`GET /api/health`)
 - [x] User & Authentication Module (Module 1)
@@ -93,7 +93,7 @@ npm install
 ```
 
 ### 4. Configure Environment Variables
-Create a local `.env` file in the root of the `Backend/` directory. You can base it on [.env.example](file:///home/pushkrine/FSL/BACKEND/HRMS/Backend/.env.example):
+Create a local `.env` file in the root of the `Backend/` directory. You can base it on [.env.example](./.env.example):
 ```env
 PORT=5000
 MONGO_URL=your_mongodb_connection_string_here

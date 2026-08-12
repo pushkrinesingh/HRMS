@@ -1,9 +1,7 @@
 import Employee from "../models/Employee.js";
 import User from "../models/User.js";
 import Department from "../models/Department.js";
-import Admin from "../models/Admin.js";
-import Manager from "../models/Manager.js";
-import bcrypt from "bcryptjs";
+import { createProfileForRole } from "../utils/createProfileForRole.js";
 
 export const createEmployee = async (req, res) => {
   const { userId, name, email, password, role, department, designation, manager, joiningDate, salary } = req.body;
@@ -28,14 +26,12 @@ export const createEmployee = async (req, res) => {
         });
       }
 
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-
       const user = new User({
         name,
         email,
-        password: hashedPassword,
+        password,
         role: finalRole,
+        createdBy: req.user?.id || null,
       });
 
       await user.save();
@@ -51,62 +47,16 @@ export const createEmployee = async (req, res) => {
       finalRole = userExists.role;
     }
 
-    let profileData = null;
-
-    if (finalRole === "admin") {
-      const exists = await Admin.findOne({ user: finalUserId });
-      if (exists) {
-        return res.status(400).json({
-          success: false,
-          message: "An admin record already exists for this user",
-        });
-      }
-
-      const admin = new Admin({ user: finalUserId });
-      await admin.save();
-      profileData = admin;
-    } else if (finalRole === "manager") {
-      const exists = await Manager.findOne({ user: finalUserId });
-      if (exists) {
-        return res.status(400).json({
-          success: false,
-          message: "A manager record already exists for this user",
-        });
-      }
-
-      const managerProfile = new Manager({
-        user: finalUserId,
-        department,
-        designation,
-        salary,
-      });
-      await managerProfile.save();
-      profileData = managerProfile;
-    } else if (finalRole === "employee") {
-      const exists = await Employee.findOne({ user: finalUserId });
-      if (exists) {
-        return res.status(400).json({
-          success: false,
-          message: "An employee record already exists for this user",
-        });
-      }
-
-      const employee = new Employee({
-        user: finalUserId,
-        department,
-        designation,
-        manager: manager || null,
-        joiningDate,
-        salary,
-      });
-      await employee.save();
-      profileData = employee;
-    } else {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid user role",
-      });
-    }
+    const profileData = await createProfileForRole({
+      userId: finalUserId,
+      role: finalRole,
+      department,
+      designation,
+      manager,
+      joiningDate,
+      salary,
+      createdBy: req.user?.id || null,
+    });
 
     return res.status(201).json({
       success: true,
@@ -123,7 +73,7 @@ export const createEmployee = async (req, res) => {
 
 export const getAllEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find()
+    const employees = await Employee.find({ isActive: true })
       .populate("user", "name email role")
       .populate("department", "name")
       .populate({
@@ -144,11 +94,69 @@ export const getAllEmployees = async (req, res) => {
   }
 };
 
+export const getMyProfile = async (req, res) => {
+  try {
+    const employee = await Employee.findOne({ user: req.user.id, isActive: true })
+      .populate("user", "name email role")
+      .populate("department", "name")
+      .populate({
+        path: "manager",
+        populate: { path: "user", select: "name email" },
+        select: "designation",
+      });
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee profile not found for logged-in user",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: employee,
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+    });
+  }
+};
+
+
+export const getMyTeam = async (req, res) => {
+  try {
+    const myEmployee = await Employee.findOne({ user: req.user.id, isActive: true });
+
+    if (!myEmployee) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+      });
+    }
+
+    const team = await Employee.find({ manager: myEmployee._id, isActive: true })
+      .populate("user", "name email role")
+      .populate("department", "name");
+
+    return res.status(200).json({
+      success: true,
+      data: team,
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+    });
+  }
+};
+
 export const getEmployeeById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const employee = await Employee.findById(id)
+    const employee = await Employee.findOne({ _id: id, isActive: true })
       .populate("user", "name email role")
       .populate("department", "name")
       .populate({
@@ -181,10 +189,16 @@ export const updateEmployee = async (req, res) => {
   const updates = req.body;
 
   try {
-    const employee = await Employee.findByIdAndUpdate(id, updates, {
-      new: true,
-      runValidators: true,
-    });
+    const updateData = {
+      ...updates,
+      updatedBy: req.user?.id || null,
+    };
+
+    const employee = await Employee.findOneAndUpdate(
+      { _id: id, isActive: true },
+      updateData,
+      { new: true, runValidators: true }
+    );
 
     if (!employee) {
       return res.status(404).json({
@@ -210,7 +224,11 @@ export const deleteEmployee = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const employee = await Employee.findByIdAndDelete(id);
+    const employee = await Employee.findOneAndUpdate(
+      { _id: id, isActive: true },
+      { isActive: false, updatedBy: req.user?.id || null },
+      { new: true }
+    );
 
     if (!employee) {
       return res.status(404).json({
@@ -234,6 +252,9 @@ export const deleteEmployee = async (req, res) => {
 export const getDepartmentEmployeeCounts = async (req, res) => {
   try {
     const stats = await Employee.aggregate([
+      {
+        $match: { isActive: true },
+      },
       {
         $group: {
           _id: "$department",

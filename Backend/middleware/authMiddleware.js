@@ -13,6 +13,7 @@ export const authMiddleware = (allowedRoles = []) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         authenticatedUser = decoded;
       } catch (error) {
+        console.error("Auth middleware access token verification failed, attempting silent refresh:", error.message);
       }
     }
 
