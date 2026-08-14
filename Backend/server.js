@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
+
 import ConnectToDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import departmentRoutes from "./routes/departmentRoutes.js";
@@ -14,9 +15,12 @@ const app = express();
 
 await ConnectToDB();
 
+const allowedOrigin = process.env.NODE_ENV === "production" ? process.env.FRONTEND_URL : "http://localhost:5173";
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
-  credentials: true,
+    origin: allowedOrigin,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
 }));
 
 app.use(express.json());
