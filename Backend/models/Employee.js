@@ -8,9 +8,19 @@ const employeeSchema = new mongoose.Schema(
       required: [true, "User reference is required"],
       unique: true,
     },
+    role: {
+      type: String,
+      enum: ["admin", "manager", "employee"],
+    },
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
+      required: [
+        function () {
+          return this.role === "manager" || this.role === "employee";
+        },
+        "Department is required",
+      ],
     },
     designation: {
       type: String,
@@ -19,6 +29,12 @@ const employeeSchema = new mongoose.Schema(
     manager: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
+      required: [
+        function () {
+          return this.role === "manager" || this.role === "employee";
+        },
+        "Manager is required",
+      ],
     },
     joiningDate: {
       type: Date,

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Employee from "../models/Employee.js";
 import User from "../models/User.js";
 import Department from "../models/Department.js";
@@ -6,56 +7,63 @@ import { createProfileForRole } from "../utils/createProfileForRole.js";
 export const createEmployee = async (req, res) => {
   const { userId, name, email, password, role, department, designation, manager, joiningDate, salary } = req.body;
 
+  const session = await mongoose.startSession();
   try {
-    let finalUserId = userId;
+    let profileData;
     let finalRole = role || "employee";
 
-    if (!finalUserId) {
-      if (!name || !email || !password) {
-        return res.status(400).json({
-          success: false,
-          message: "Please provide user details (name, email, password) to create a new user account",
-        });
+    await session.withTransaction(async () => {
+      let finalUserId = userId;
+
+      if (!finalUserId) {
+        if (!name || !email || !password) {
+          const error = new Error("Please provide user details (name, email, password) to create a new user account");
+          error.status = 400;
+          throw error;
+        }
+
+        const existingUser = await User.findOne({ email }).session(session);
+        if (existingUser) {
+          const error = new Error("User already exists with this email");
+          error.status = 400;
+          throw error;
+        }
+
+        const [user] = await User.create(
+          [
+            {
+              name,
+              email,
+              password,
+              role: finalRole,
+              createdBy: req.user?.id || null,
+            },
+          ],
+          { session }
+        );
+
+        finalUserId = user._id;
+      } else {
+        const userExists = await User.findById(finalUserId).session(session);
+        if (!userExists) {
+          const error = new Error("Referenced user not found");
+          error.status = 404;
+          throw error;
+        }
+        finalRole = userExists.role;
       }
 
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: "User already exists with this email",
-        });
-      }
-
-      const user = new User({
-        name,
-        email,
-        password,
+      profileData = await createProfileForRole({
+        userId: finalUserId,
         role: finalRole,
+        department,
+        designation,
+        manager,
+        joiningDate,
+        salary,
         createdBy: req.user?.id || null,
+        session,
       });
-
-      await user.save();
-      finalUserId = user._id;
-    } else {
-      const userExists = await User.findById(finalUserId);
-      if (!userExists) {
-        return res.status(404).json({
-          success: false,
-          message: "Referenced user not found",
-        });
-      }
-      finalRole = userExists.role;
-    }
-
-    const profileData = await createProfileForRole({
-      userId: finalUserId,
-      role: finalRole,
-      department,
-      designation,
-      manager,
-      joiningDate,
-      salary,
-      createdBy: req.user?.id || null,
     });
 
     return res.status(201).json({
@@ -68,6 +76,8 @@ export const createEmployee = async (req, res) => {
       success: false,
       message: error.message || "Internal Server Error",
     });
+  } finally {
+    await session.endSession();
   }
 };
 

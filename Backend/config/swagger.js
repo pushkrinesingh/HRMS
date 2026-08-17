@@ -3,7 +3,7 @@ const swaggerDocument = {
   info: {
     title: "HRMS API Documentation",
     version: "1.0.0",
-    description: "API endpoints for the Human Resource Management System (HRMS) Backend."
+    description: "API endpoints for the Human Resource Management System (HRMS) Backend.\n\n### Demo Admin Credentials for Testing:\n- **Email:** `admin@hrms.com`\n- **Password:** `Admin@123`\n- **Note:** Use this account to obtain an admin JWT token via POST `/api/auth/login`, required for accessing protected admin-only routes like POST `/api/employees`."
   },
   servers: [
     {
@@ -98,6 +98,7 @@ const swaggerDocument = {
     "/api/auth/register": {
       post: {
         summary: "Register a new user and create profile (Admin only)",
+        description: "For role='admin', department and manager fields are optional and can be omitted.",
         security: [{ cookieAuth: [] }],
         requestBody: {
           required: true,
@@ -123,6 +124,12 @@ const swaggerDocument = {
                     }
                   }
                 }
+              },
+              example: {
+                name: "Pushkrine Singh",
+                email: "admin@hrms.com",
+                password: "Admin@123",
+                role: "admin"
               }
             }
           }
@@ -154,6 +161,10 @@ const swaggerDocument = {
                   email: { type: "string" },
                   password: { type: "string" }
                 }
+              },
+              example: {
+                email: "admin@hrms.com",
+                password: "Admin@123"
               }
             }
           }
@@ -261,7 +272,7 @@ const swaggerDocument = {
       post: {
         summary: "Provision a profile for a user (Admin only)",
         security: [{ cookieAuth: [] }],
-        description: "Creates a profile (Employee, Manager, or Admin record) for a user. You can provide an existing `userId` or pass new user credentials (`name`, `email`, `password`, `role`) to register the user and profile dynamically.",
+        description: "Creates a profile (Employee, Manager, or Admin record) for a user. You can provide an existing `userId` or pass new user credentials (`name`, `email`, `password`, `role`) to register the user and profile dynamically. Note: department and manager are required for role='manager' and role='employee', but optional for role='admin'.",
         requestBody: {
           required: true,
           content: {
@@ -284,6 +295,44 @@ const swaggerDocument = {
                       basic: { type: "number" },
                       hra: { type: "number" }
                     }
+                  }
+                }
+              },
+              examples: {
+                managerExample: {
+                  summary: "Manager example",
+                  value: {
+                    name: "Rahul Verma",
+                    email: "manager@hrms.com",
+                    password: "Manager@123",
+                    role: "manager",
+                    department: "<department_id>",
+                    designation: "Engineering Manager",
+                    manager: "<admin_or_top_manager_employee_id>",
+                    joiningDate: "2024-01-15"
+                  }
+                },
+                employeeExample: {
+                  summary: "Employee example",
+                  value: {
+                    name: "Aditi Sharma",
+                    email: "employee1@hrms.com",
+                    password: "Employee@123",
+                    role: "employee",
+                    department: "<department_id>",
+                    designation: "Software Engineer",
+                    manager: "<manager_employee_id>",
+                    joiningDate: "2024-02-01"
+                  }
+                },
+                invalidMissingDepartment: {
+                  summary: "Invalid - missing department (should fail)",
+                  value: {
+                    name: "Test Rollback",
+                    email: "rollbacktest@hrms.com",
+                    password: "Test@123",
+                    role: "employee",
+                    designation: "QA Tester"
                   }
                 }
               }

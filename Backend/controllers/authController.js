@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
@@ -6,52 +7,64 @@ import { createProfileForRole } from "../utils/createProfileForRole.js";
 export const register = async (req, res) => {
   const { name, email, password, role, department, designation, manager, joiningDate, salary } = req.body;
 
+  const session = await mongoose.startSession();
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "User already exists with this email",
+    let result;
+    await session.withTransaction(async () => {
+      const existingUser = await User.findOne({ email }).session(session);
+      if (existingUser) {
+        const error = new Error("User already exists with this email");
+        error.status = 400;
+        throw error;
+      }
+
+      const userRole = role || "employee";
+      const [user] = await User.create(
+        [
+          {
+            name,
+            email,
+            password,
+            role: userRole,
+            createdBy: req.user?.id || null,
+          },
+        ],
+        { session }
+      );
+
+      const profileData = await createProfileForRole({
+        userId: user._id,
+        role: user.role,
+        department,
+        designation,
+        manager,
+        joiningDate,
+        salary,
+        createdBy: req.user?.id || null,
+        session,
       });
-    }
 
-    const user = new User({
-      name,
-      email,
-      password,
-      role: role || "employee",
-      createdBy: req.user?.id || null,
+      const userResponse = user.toObject();
+      delete userResponse.password;
+
+      result = {
+        user: userResponse,
+        profile: profileData,
+      };
     });
-
-    await user.save();
-
-    const profileData = await createProfileForRole({
-      userId: user._id,
-      role: user.role,
-      department,
-      designation,
-      manager,
-      joiningDate,
-      salary,
-      createdBy: req.user?.id || null,
-    });
-
-    const userResponse = user.toObject();
-    delete userResponse.password;
 
     return res.status(201).json({
       success: true,
       message: "User registered and profile created successfully",
-      data: {
-        user: userResponse,
-        profile: profileData,
-      },
+      data: result,
     });
   } catch (error) {
     return res.status(error.status || 500).json({
       success: false,
       message: error.message || "Internal Server Error",
     });
+  } finally {
+    await session.endSession();
   }
 };
 
@@ -75,6 +88,9 @@ export const login = async (req, res) => {
         message: "Invalid credentials",
       });
     }
+
+    user.lastLoginAt = new Date();
+    await user.save();
 
     const accessToken = jwt.sign(
       { id: user._id, role: user.role },

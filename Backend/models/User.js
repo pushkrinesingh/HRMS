@@ -29,19 +29,24 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    deletedAt: {
+      type: Date,
+    },
+    lastLoginAt: {
+      type: Date,
+    },
     isActive: {
       type: Boolean,
       default: true,
     },
   },
-  // Using Mongoose's built-in { timestamps: true } schema option automatically manages createdAt 
-  // and updatedAt timestamps on document creation and updates instead of manually handling Date fields.
   { timestamps: true }
 );
 
-// Centralizing password hashing in a Mongoose pre-save hook ensures encapsulation 
-// and guarantees that any user creation or password modification path automatically 
-// hashes the password before storing it in MongoDB, preventing plain-text password leakage.
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
 
@@ -49,7 +54,6 @@ userSchema.pre("save", async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Instance method to compare candidate password with stored hashed password
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
