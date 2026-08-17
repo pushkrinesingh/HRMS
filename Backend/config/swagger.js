@@ -3,7 +3,7 @@ const swaggerDocument = {
   info: {
     title: "HRMS API Documentation",
     version: "1.0.0",
-    description: "API endpoints for the Human Resource Management System (HRMS) Backend.\n\n### Demo Admin Credentials for Testing:\n- **Email:** `admin@hrms.com`\n- **Password:** `Admin@123`\n- **Note:** Use this account to obtain an admin JWT token via POST `/api/auth/login`, required for accessing protected admin-only routes like POST `/api/employees`."
+    description: "API endpoints for the Human Resource Management System (HRMS) Backend.\n\n### Demo Admin Credentials for Testing:\n- **Email:** `demo@hrms.com`\n- **Password:** `demo@123`\n- **Note:** Use this account to obtain an admin JWT token via POST `/api/auth/login`, required for accessing protected admin-only routes like POST `/api/employees`."
   },
   servers: [
     {
@@ -131,8 +131,8 @@ const swaggerDocument = {
               },
               example: {
                 name: "Pushkrine Singh",
-                email: "admin@hrms.com",
-                password: "Admin@123",
+                email: "demo@hrms.com",
+                password: "demo@123",
                 role: "admin"
               }
             }
