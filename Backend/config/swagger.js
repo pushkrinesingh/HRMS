@@ -7,7 +7,11 @@ const swaggerDocument = {
   },
   servers: [
     {
-      url: "http://localhost:5000",
+      url: "https://hrms-mjgh.onrender.com/",
+      description: "Render Production Server"
+    },
+    {
+      url: `http://localhost:${process.env.PORT || 5000}`,
       description: "Development Server"
     }
   ],
@@ -163,8 +167,8 @@ const swaggerDocument = {
                 }
               },
               example: {
-                email: "admin@hrms.com",
-                password: "Admin@123"
+                email: "demo@hrms.com",
+                password: "demo@123"
               }
             }
           }
