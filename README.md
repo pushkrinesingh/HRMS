@@ -1,6 +1,6 @@
 # HRMS - Human Resource Management System
 
-HRMS (Human Resource Management System) is a full-stack web application designed to streamline core organizational HR processes, including employee directory management, department structures, user authentication, and role-based access control (RBAC). The project is structured into two decoupled modules: **Frontend** and **Backend**.
+HRMS (Human Resource Management System) is a full-stack web application designed to streamline core organizational HR processes, including employee directory management, user authentication, and role-based access control (RBAC). The project is structured into two decoupled modules: **Frontend** and **Backend**.
 
 ---
 
@@ -56,47 +56,30 @@ A robust and scalable Node.js/Express RESTful API implementing secure authentica
 * **API Documentation**: Swagger UI (`swagger-ui-express`)
 * **Middleware & Utilities**: CORS, Cookie Parser
 
-### What it Includes
+### Key Backend Features & Enhancements
 * **Role-Based Access Control (RBAC)**: Enforces specific permissions across three roles:
-  * **Admin**: Complete system access — create departments, provision employee accounts, update/delete employee records, and view department headcount statistics.
-  * **Manager**: Read-only access to employee listings and individual employee details.
-  * **Employee**: Read-only access to personal profile details.
-* **Authentication System**: Secure login and session handling using short-lived access tokens and long-lived refresh tokens with automated cookie management.
-* **Department Management**: API endpoints to create and list organizational departments.
-* **Employee Management**: Full CRUD capabilities for provisioning and managing employee profiles, populated with User and Department associations.
+  * **Admin**: Complete system access — provision employee accounts, update/delete employee records, and view all employees.
+  * **Manager**: Access employee directory, view direct reports (`?team=true`), and view direct report details by ID.
+  * **Employee**: Access personal account and employee profile details via `/api/auth/me`.
+* **Unified `GET /api/employees` Endpoint**: Consolidated all employee GET operations into a single endpoint supporting query parameters (`?id=<id>` or `?team=true`).
+* **Fixed Department Enum**: Department field on `Employee` model uses a static String enum (`Engineering`, `HR`, `Sales`, `Finance`, `Marketing`, `Operations`, `Legal`, `IT`, `Customer Support`, `Admin`).
+* **Middleware Authorization**: `authMiddleware` attaches `req.employee` and `authorizeManagerAccess` validates manager ownership in middleware.
 * **Interactive API Documentation**: Swagger UI integration accessible via `/api-docs/`.
-* **Database Seeding**: Utility script to seed an initial Administrator account into the database.
 
-### Backend Directory Structure
-```text
-Backend/
-├── config/         # Database connection and Swagger API documentation setup
-├── controllers/    # API request handling logic (Auth, Department, Employee)
-├── middleware/     # Authentication and Role-Based Access Control middleware
-├── models/         # Mongoose database schemas (User, Admin, Manager, Employee, Department)
-├── routes/         # Express API route definitions
-├── scripts/        # Administrative database seeding utilities
-└── server.js       # Entry point for the Express server
-```
+### Backend Key API Endpoints
 
-### Key API Endpoints
-
-| Category | Endpoint | Access Level | Description |
-| :--- | :--- | :--- | :--- |
-| **System** | `GET /api/health` | Public | Server health and database connection status check |
-| **Auth** | `POST /api/auth/register` | Admin | Register new users and assign role profiles |
-| **Auth** | `POST /api/auth/login` | Public | Authenticate user credentials and set auth cookies |
-| **Auth** | `POST /api/auth/refresh` | Public | Refresh expired access tokens |
-| **Auth** | `POST /api/auth/logout` | Public | Log out user and clear authorization cookies |
-| **Auth** | `GET /api/auth/me` | Authenticated | Retrieve authenticated user profile |
-| **Departments** | `POST /api/departments` | Admin | Create a new department |
-| **Departments** | `GET /api/departments` | Authenticated | Retrieve list of all departments |
-| **Employees** | `POST /api/employees` | Admin | Provision a new employee user and role profile |
-| **Employees** | `GET /api/employees` | Admin, Manager | Retrieve all employee profiles with populated references |
-| **Employees** | `GET /api/employees/stats/department-count` | Admin | Aggregate employee headcount grouped by department |
-| **Employees** | `GET /api/employees/:id` | Admin, Manager | Get individual employee details by ID |
-| **Employees** | `PUT /api/employees/:id` | Admin | Update existing employee details |
-| **Employees** | `DELETE /api/employees/:id` | Admin | Delete an employee profile |
+| Category | Method | Endpoint | Access Level | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **System** | `GET` | `/api/health` | Public | Server health and database connection status check |
+| **Auth** | `POST` | `/api/auth/register` | Admin | Register new users and assign role profiles |
+| **Auth** | `POST` | `/api/auth/login` | Public | Authenticate user credentials and set auth cookies |
+| **Auth** | `POST` | `/api/auth/refresh` | Public | Refresh expired access tokens |
+| **Auth** | `POST` | `/api/auth/logout` | Public | Log out user and clear authorization cookies |
+| **Auth** | `GET` | `/api/auth/me` | Authenticated | Retrieve authenticated user account and employee profile |
+| **Employees** | `POST` | `/api/employees` | Admin | Provision a new employee user and role profile |
+| **Employees** | `GET` | `/api/employees` | Admin, Manager | Retrieve all employee profiles or filter via query params (`?id=<id>` or `?team=true`) |
+| `Employees` | `PUT` | `/api/employees/:id` | Admin | Update existing employee details |
+| `Employees` | `DELETE` | `/api/employees/:id` | Admin | Soft delete an employee profile |
 
 ### Backend Setup & Commands
 Navigate to the `Backend` directory:
@@ -108,4 +91,4 @@ npm install
 Available scripts:
 * `npm run dev`: Launches the backend server with `nodemon` for auto-reloading during development.
 * `npm start`: Starts the production Node.js server.
-* `npm run seed:admin`: Seeds the initial Admin user account into the database.
+* `npm run seed:admin`: Seeds the initial Admin user and Employee record into the database.
