@@ -13,7 +13,7 @@ export const createProfileForRole = async ({
   session: callerSession,
 }) => {
   const executeProfileCreation = async (session) => {
-    const query = Employee.findOne({ user: userId });
+    const query = Employee.findOne({ user: userId }).select("-__v");
     if (session) {
       query.session(session);
     }
@@ -27,10 +27,10 @@ export const createProfileForRole = async ({
     const employeeData = {
       user: userId,
       role,
-      department,
-      designation,
+      department: department || null,
+      designation: designation || (role === "admin" ? "System Administrator" : undefined),
       manager: manager || null,
-      joiningDate,
+      joiningDate: joiningDate || (role === "admin" ? new Date() : undefined),
       salary,
       createdBy: createdBy || null,
     };

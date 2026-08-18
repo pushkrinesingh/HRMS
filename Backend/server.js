@@ -4,7 +4,6 @@ dotenv.config();
 
 import ConnectToDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
-import departmentRoutes from "./routes/departmentRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -28,7 +27,6 @@ app.use(cookieParser());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use("/api/auth", authRoutes);
-app.use("/api/departments", departmentRoutes);
 app.use("/api/employees", employeeRoutes);
 
 app.get("/api/health", (req, res) => {

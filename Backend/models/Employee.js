@@ -13,8 +13,23 @@ const employeeSchema = new mongoose.Schema(
       enum: ["admin", "manager", "employee"],
     },
     department: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
+      type: String,
+      enum: {
+        values: [
+          "Engineering",
+          "HR",
+          "Sales",
+          "Finance",
+          "Marketing",
+          "Operations",
+          "Legal",
+          "IT",
+          "Customer Support",
+          "Admin",
+        ],
+        message: "{VALUE} is not a valid department",
+      },
+      trim: true,
       required: [
         function () {
           return this.role === "manager" || this.role === "employee";

@@ -11,7 +11,7 @@ export const register = async (req, res) => {
   try {
     let result;
     await session.withTransaction(async () => {
-      const existingUser = await User.findOne({ email }).session(session);
+      const existingUser = await User.findOne({ email }).session(session).select("-__v");
       if (existingUser) {
         const error = new Error("User already exists with this email");
         error.status = 400;
@@ -59,7 +59,12 @@ export const register = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    return res.status(error.status || 500).json({
+    const statusCode =
+      error.name === "ValidationError" || error.name === "CastError"
+        ? 400
+        : error.status || 500;
+
+    return res.status(statusCode).json({
       success: false,
       message: error.message || "Internal Server Error",
     });
@@ -72,7 +77,7 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("-__v");
     
     if (!user) {
       return res.status(401).json({
@@ -146,7 +151,7 @@ export const refresh = async (req, res) => {
   try {
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).select("-__v");
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -209,7 +214,7 @@ export const logout = async (req, res) => {
 
 export const me = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select("-password -__v");
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -245,7 +250,7 @@ export const updateUserRole = async (req, res) => {
       id,
       { role, updatedBy: req.user?.id || null },
       { new: true, runValidators: true }
-    ).select("-password");
+    ).select("-password -__v");
 
     if (!user) {
       return res.status(404).json({

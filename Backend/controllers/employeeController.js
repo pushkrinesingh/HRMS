@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import Employee from "../models/Employee.js";
 import User from "../models/User.js";
-import Department from "../models/Department.js";
 import { createProfileForRole } from "../utils/createProfileForRole.js";
 
 export const createEmployee = async (req, res) => {
@@ -22,7 +21,7 @@ export const createEmployee = async (req, res) => {
           throw error;
         }
 
-        const existingUser = await User.findOne({ email }).session(session);
+        const existingUser = await User.findOne({ email }).session(session).select("-__v");
         if (existingUser) {
           const error = new Error("User already exists with this email");
           error.status = 400;
@@ -44,7 +43,7 @@ export const createEmployee = async (req, res) => {
 
         finalUserId = user._id;
       } else {
-        const userExists = await User.findById(finalUserId).session(session);
+        const userExists = await User.findById(finalUserId).session(session).select("-__v");
         if (!userExists) {
           const error = new Error("Referenced user not found");
           error.status = 404;
@@ -72,7 +71,12 @@ export const createEmployee = async (req, res) => {
       data: profileData,
     });
   } catch (error) {
-    return res.status(error.status || 500).json({
+    const statusCode =
+      error.name === "ValidationError" || error.name === "CastError"
+        ? 400
+        : error.status || 500;
+
+    return res.status(statusCode).json({
       success: false,
       message: error.message || "Internal Server Error",
     });
@@ -84,8 +88,8 @@ export const createEmployee = async (req, res) => {
 export const getAllEmployees = async (req, res) => {
   try {
     const employees = await Employee.find({ isActive: true })
+      .select("-__v")
       .populate("user", "name email role")
-      .populate("department", "name")
       .populate({
         path: "manager",
         populate: { path: "user", select: "name" },
@@ -107,8 +111,8 @@ export const getAllEmployees = async (req, res) => {
 export const getMyProfile = async (req, res) => {
   try {
     const employee = await Employee.findOne({ user: req.user.id, isActive: true })
+      .select("-__v")
       .populate("user", "name email role")
-      .populate("department", "name")
       .populate({
         path: "manager",
         populate: { path: "user", select: "name email" },
@@ -137,7 +141,7 @@ export const getMyProfile = async (req, res) => {
 
 export const getMyTeam = async (req, res) => {
   try {
-    const myEmployee = await Employee.findOne({ user: req.user.id, isActive: true });
+    const myEmployee = await Employee.findOne({ user: req.user.id, isActive: true }).select("-__v");
 
     if (!myEmployee) {
       return res.status(200).json({
@@ -147,8 +151,8 @@ export const getMyTeam = async (req, res) => {
     }
 
     const team = await Employee.find({ manager: myEmployee._id, isActive: true })
-      .populate("user", "name email role")
-      .populate("department", "name");
+      .select("-__v")
+      .populate("user", "name email role");
 
     return res.status(200).json({
       success: true,
@@ -167,8 +171,8 @@ export const getEmployeeById = async (req, res) => {
 
   try {
     const employee = await Employee.findOne({ _id: id, isActive: true })
+      .select("-__v")
       .populate("user", "name email role")
-      .populate("department", "name")
       .populate({
         path: "manager",
         populate: { path: "user", select: "name" },
@@ -180,6 +184,20 @@ export const getEmployeeById = async (req, res) => {
         success: false,
         message: "Employee record not found",
       });
+    }
+
+    if (req.user?.role === "manager") {
+      const myEmployee = await Employee.findOne({ user: req.user.id, isActive: true }).select("-__v");
+      const targetManagerId = employee.manager?._id
+        ? employee.manager._id.toString()
+        : employee.manager?.toString();
+
+      if (!myEmployee || targetManagerId !== myEmployee._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to view this employee's details",
+        });
+      }
     }
 
     return res.status(200).json({
@@ -208,7 +226,7 @@ export const updateEmployee = async (req, res) => {
       { _id: id, isActive: true },
       updateData,
       { new: true, runValidators: true }
-    );
+    ).select("-__v");
 
     if (!employee) {
       return res.status(404).json({
@@ -238,7 +256,7 @@ export const deleteEmployee = async (req, res) => {
       { _id: id, isActive: true },
       { isActive: false, updatedBy: req.user?.id || null },
       { new: true }
-    );
+    ).select("-__v");
 
     if (!employee) {
       return res.status(404).json({
@@ -259,39 +277,3 @@ export const deleteEmployee = async (req, res) => {
   }
 };
 
-export const getDepartmentEmployeeCounts = async (req, res) => {
-  try {
-    const stats = await Employee.aggregate([
-      {
-        $match: { isActive: true },
-      },
-      {
-        $group: {
-          _id: "$department",
-          employeeCount: { $sum: 1 },
-        },
-      },
-    ]);
-
-    const populatedStats = await Department.populate(stats, {
-      path: "_id",
-      select: "name",
-    });
-
-    const formattedStats = populatedStats.map((item) => ({
-      departmentId: item._id?._id || item._id,
-      departmentName: item._id?.name || "Unknown",
-      employeeCount: item.employeeCount,
-    }));
-
-    return res.status(200).json({
-      success: true,
-      data: formattedStats,
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      message: error.message || "Internal Server Error",
-    });
-  }
-};

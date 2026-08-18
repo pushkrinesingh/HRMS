@@ -29,7 +29,7 @@ export const authMiddleware = (allowedRoles = []) => {
       try {
         const decodedRefresh = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
-        const user = await User.findById(decodedRefresh.id);
+        const user = await User.findById(decodedRefresh.id).select("-__v");
         if (!user) {
           return res.status(401).json({
             success: false,

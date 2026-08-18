@@ -15,6 +15,20 @@ const swaggerDocument = {
       description: "Development Server"
     }
   ],
+  tags: [
+    {
+      name: "Health",
+      description: "Server health check endpoints"
+    },
+    {
+      name: "Auth",
+      description: "Authentication and registration endpoints"
+    },
+    {
+      name: "Employees",
+      description: "Employee management endpoints"
+    }
+  ],
   components: {
     securitySchemes: {
       cookieAuth: {
@@ -38,7 +52,10 @@ const swaggerDocument = {
         properties: {
           _id: { type: "string" },
           user: { type: "string" },
-          department: { type: "string" },
+          department: {
+            type: "string",
+            enum: ["Engineering", "HR", "Sales", "Finance", "Marketing", "Operations", "Legal", "IT", "Customer Support", "Admin"]
+          },
           designation: { type: "string" },
           manager: { type: "string", nullable: true },
           joiningDate: { type: "string", format: "date-time" },
@@ -56,7 +73,10 @@ const swaggerDocument = {
         properties: {
           _id: { type: "string" },
           user: { type: "string" },
-          department: { type: "string" },
+          department: {
+            type: "string",
+            enum: ["Engineering", "HR", "Sales", "Finance", "Marketing", "Operations", "Legal", "IT", "Customer Support", "Admin"]
+          },
           designation: { type: "string" },
           salary: {
             type: "object",
@@ -66,19 +86,13 @@ const swaggerDocument = {
             }
           }
         }
-      },
-      Department: {
-        type: "object",
-        properties: {
-          _id: { type: "string" },
-          name: { type: "string" }
-        }
       }
     }
   },
   paths: {
     "/api/health": {
       get: {
+        tags: ["Health"],
         summary: "API Health Check",
         responses: {
           200: {
@@ -101,6 +115,7 @@ const swaggerDocument = {
     },
     "/api/auth/register": {
       post: {
+        tags: ["Auth"],
         summary: "Register a new user and create profile (Admin only)",
         description: "For role='admin', department and manager fields are optional and can be omitted.",
         security: [{ cookieAuth: [] }],
@@ -116,7 +131,10 @@ const swaggerDocument = {
                   email: { type: "string" },
                   password: { type: "string" },
                   role: { type: "string", enum: ["admin", "manager", "employee"] },
-                  department: { type: "string" },
+                  department: {
+                    type: "string",
+                    enum: ["Engineering", "HR", "Sales", "Finance", "Marketing", "Operations", "Legal", "IT", "Customer Support", "Admin"]
+                  },
                   designation: { type: "string" },
                   manager: { type: "string" },
                   joiningDate: { type: "string", format: "date-time" },
@@ -153,6 +171,7 @@ const swaggerDocument = {
     },
     "/api/auth/login": {
       post: {
+        tags: ["Auth"],
         summary: "Authenticate user and set cookies",
         requestBody: {
           required: true,
@@ -185,6 +204,7 @@ const swaggerDocument = {
     },
     "/api/auth/refresh": {
       post: {
+        tags: ["Auth"],
         summary: "Rotate access token using refresh token",
         responses: {
           200: {
@@ -198,6 +218,7 @@ const swaggerDocument = {
     },
     "/api/auth/logout": {
       post: {
+        tags: ["Auth"],
         summary: "Logout user and clear cookies",
         responses: {
           200: {
@@ -208,6 +229,7 @@ const swaggerDocument = {
     },
     "/api/auth/me": {
       get: {
+        tags: ["Auth"],
         summary: "Get current user profile",
         security: [{ cookieAuth: [] }],
         responses: {
@@ -220,48 +242,49 @@ const swaggerDocument = {
         }
       }
     },
-    "/api/departments": {
-      get: {
-        summary: "Get list of all departments",
+    "/api/auth/users/{id}/role": {
+      patch: {
+        tags: ["Auth"],
+        summary: "Update user role (Admin only)",
         security: [{ cookieAuth: [] }],
-        responses: {
-          200: {
-            description: "List of departments"
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string" }
           }
-        }
-      },
-      post: {
-        summary: "Create a new department (Admin only)",
-        security: [{ cookieAuth: [] }],
+        ],
         requestBody: {
           required: true,
           content: {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["name"],
+                required: ["role"],
                 properties: {
-                  name: { type: "string" }
+                  role: { type: "string", enum: ["admin", "manager", "employee"] }
                 }
               }
             }
           }
         },
         responses: {
-          201: {
-            description: "Department created successfully"
+          200: {
+            description: "User role updated successfully"
           },
           400: {
-            description: "Department already exists"
+            description: "Invalid role specified"
           },
-          403: {
-            description: "Forbidden - Admin role required"
+          404: {
+            description: "User not found"
           }
         }
       }
     },
     "/api/employees": {
       get: {
+        tags: ["Employees"],
         summary: "Get list of all employees (Admin & Manager)",
         security: [{ cookieAuth: [] }],
         responses: {
@@ -274,6 +297,7 @@ const swaggerDocument = {
         }
       },
       post: {
+        tags: ["Employees"],
         summary: "Provision a profile for a user (Admin only)",
         security: [{ cookieAuth: [] }],
         description: "Creates a profile (Employee, Manager, or Admin record) for a user. You can provide an existing `userId` or pass new user credentials (`name`, `email`, `password`, `role`) to register the user and profile dynamically. Note: department and manager are required for role='manager' and role='employee', but optional for role='admin'.",
@@ -289,7 +313,10 @@ const swaggerDocument = {
                   email: { type: "string" },
                   password: { type: "string" },
                   role: { type: "string", enum: ["admin", "manager", "employee"] },
-                  department: { type: "string" },
+                  department: {
+                    type: "string",
+                    enum: ["Engineering", "HR", "Sales", "Finance", "Marketing", "Operations", "Legal", "IT", "Customer Support", "Admin"]
+                  },
                   designation: { type: "string" },
                   manager: { type: "string" },
                   joiningDate: { type: "string", format: "date-time" },
@@ -310,7 +337,7 @@ const swaggerDocument = {
                     email: "manager@hrms.com",
                     password: "Manager@123",
                     role: "manager",
-                    department: "<department_id>",
+                    department: "Engineering",
                     designation: "Engineering Manager",
                     manager: "<admin_or_top_manager_employee_id>",
                     joiningDate: "2024-01-15"
@@ -323,7 +350,7 @@ const swaggerDocument = {
                     email: "employee1@hrms.com",
                     password: "Employee@123",
                     role: "employee",
-                    department: "<department_id>",
+                    department: "Engineering",
                     designation: "Software Engineer",
                     manager: "<manager_employee_id>",
                     joiningDate: "2024-02-01"
@@ -356,22 +383,36 @@ const swaggerDocument = {
         }
       }
     },
-    "/api/employees/stats/department-count": {
+    "/api/employees/me": {
       get: {
-        summary: "Get headcount counts grouped by department (Admin only)",
+        tags: ["Employees"],
+        summary: "Get employee profile for logged-in user",
         security: [{ cookieAuth: [] }],
         responses: {
           200: {
-            description: "Department employee count details"
+            description: "Logged in user employee profile"
           },
-          403: {
-            description: "Forbidden - Admin role required"
+          404: {
+            description: "Employee profile not found for logged-in user"
+          }
+        }
+      }
+    },
+    "/api/employees/my-team": {
+      get: {
+        tags: ["Employees"],
+        summary: "Get team members for logged-in manager",
+        security: [{ cookieAuth: [] }],
+        responses: {
+          200: {
+            description: "List of direct report team members"
           }
         }
       }
     },
     "/api/employees/{id}": {
       get: {
+        tags: ["Employees"],
         summary: "Get employee details by ID (Admin & Manager)",
         security: [{ cookieAuth: [] }],
         parameters: [
@@ -386,12 +427,16 @@ const swaggerDocument = {
           200: {
             description: "Employee details"
           },
+          403: {
+            description: "Forbidden - Not authorized to view this employee's details"
+          },
           404: {
             description: "Employee not found"
           }
         }
       },
       put: {
+        tags: ["Employees"],
         summary: "Update employee details (Admin only)",
         security: [{ cookieAuth: [] }],
         parameters: [
@@ -409,7 +454,10 @@ const swaggerDocument = {
               schema: {
                 type: "object",
                 properties: {
-                  department: { type: "string" },
+                  department: {
+                    type: "string",
+                    enum: ["Engineering", "HR", "Sales", "Finance", "Marketing", "Operations", "Legal", "IT", "Customer Support", "Admin"]
+                  },
                   designation: { type: "string" },
                   manager: { type: "string" },
                   joiningDate: { type: "string", format: "date-time" },
@@ -435,6 +483,7 @@ const swaggerDocument = {
         }
       },
       delete: {
+        tags: ["Employees"],
         summary: "Delete employee record (Admin only)",
         security: [{ cookieAuth: [] }],
         parameters: [

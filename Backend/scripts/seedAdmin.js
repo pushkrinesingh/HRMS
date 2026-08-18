@@ -17,7 +17,7 @@ const seedAdmin = async () => {
     const adminExists = await User.findOne({ role: "admin" });
     if (adminExists) {
       console.log("An Admin account already exists.");
-      mongoose.connection.close();
+      await mongoose.connection.close();
       return;
     }
 
@@ -25,28 +25,43 @@ const seedAdmin = async () => {
     const email = process.env.ADMIN_EMAIL || "admin@hrms.com";
     const password = process.env.ADMIN_PASSWORD || "admin123";
 
-    const user = new User({
-      name,
-      email,
-      password,
-      role: "admin",
-    });
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const [user] = await User.create(
+          [
+            {
+              name,
+              email,
+              password,
+              role: "admin",
+            },
+          ],
+          { session }
+        );
 
-    await user.save();
+        await Employee.create(
+          [
+            {
+              user: user._id,
+              role: "admin",
+              designation: "System Administrator",
+              joiningDate: new Date(),
+              manager: null,
+            },
+          ],
+          { session }
+        );
+      });
 
-    const adminEmployee = new Employee({
-      user: user._id,
-      designation: "System Administrator",
-      joiningDate: new Date(),
-    });
-
-    await adminEmployee.save();
-
-    console.log(`Admin user and employee profile created successfully: ${email}`);
+      console.log(`Admin user and employee profile created successfully: ${email}`);
+    } finally {
+      await session.endSession();
+    }
   } catch (error) {
     console.error("Failed to seed admin user:", error);
   } finally {
-    mongoose.connection.close();
+    await mongoose.connection.close();
   }
 };
 
