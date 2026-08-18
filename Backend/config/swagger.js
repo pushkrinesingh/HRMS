@@ -230,11 +230,11 @@ const swaggerDocument = {
     "/api/auth/me": {
       get: {
         tags: ["Auth"],
-        summary: "Get current user profile",
+        summary: "Get current user account and employee profile",
         security: [{ cookieAuth: [] }],
         responses: {
           200: {
-            description: "User profile details"
+            description: "User account and employee profile details"
           },
           401: {
             description: "Not authorized"
@@ -285,14 +285,30 @@ const swaggerDocument = {
     "/api/employees": {
       get: {
         tags: ["Employees"],
-        summary: "Get list of all employees (Admin & Manager)",
+        summary: "Get employees (list all, or fetch single employee by ?id=<id>, or filter by ?team=true)",
         security: [{ cookieAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "query",
+            required: false,
+            description: "Employee ID to fetch a specific employee's details",
+            schema: { type: "string" }
+          },
+          {
+            name: "team",
+            in: "query",
+            required: false,
+            description: "Set to 'true' to retrieve manager's direct report team members",
+            schema: { type: "string" }
+          }
+        ],
         responses: {
           200: {
-            description: "List of employees"
+            description: "Employee details or list of employees"
           },
           403: {
-            description: "Forbidden - Requires Admin/Manager role"
+            description: "Forbidden - Permission denied"
           }
         }
       },
@@ -383,58 +399,8 @@ const swaggerDocument = {
         }
       }
     },
-    "/api/employees/me": {
-      get: {
-        tags: ["Employees"],
-        summary: "Get employee profile for logged-in user",
-        security: [{ cookieAuth: [] }],
-        responses: {
-          200: {
-            description: "Logged in user employee profile"
-          },
-          404: {
-            description: "Employee profile not found for logged-in user"
-          }
-        }
-      }
-    },
-    "/api/employees/my-team": {
-      get: {
-        tags: ["Employees"],
-        summary: "Get team members for logged-in manager",
-        security: [{ cookieAuth: [] }],
-        responses: {
-          200: {
-            description: "List of direct report team members"
-          }
-        }
-      }
-    },
+
     "/api/employees/{id}": {
-      get: {
-        tags: ["Employees"],
-        summary: "Get employee details by ID (Admin & Manager)",
-        security: [{ cookieAuth: [] }],
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "string" }
-          }
-        ],
-        responses: {
-          200: {
-            description: "Employee details"
-          },
-          403: {
-            description: "Forbidden - Not authorized to view this employee's details"
-          },
-          404: {
-            description: "Employee not found"
-          }
-        }
-      },
       put: {
         tags: ["Employees"],
         summary: "Update employee details (Admin only)",

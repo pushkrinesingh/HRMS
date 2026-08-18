@@ -85,8 +85,53 @@ export const createEmployee = async (req, res) => {
   }
 };
 
-export const getAllEmployees = async (req, res) => {
+export const getEmployees = async (req, res) => {
+  const employeeId = req.params.id || req.query.id;
+  const { team, myTeam, scope } = req.query;
+  const isTeam = team === "true" || myTeam === "true" || scope === "team";
+
   try {
+    if (isTeam) {
+      if (!req.employee) {
+        return res.status(200).json({
+          success: true,
+          data: [],
+        });
+      }
+
+      const teamMembers = await Employee.find({ manager: req.employee._id, isActive: true })
+        .select("-__v")
+        .populate("user", "name email role");
+
+      return res.status(200).json({
+        success: true,
+        data: teamMembers,
+      });
+    }
+
+    if (employeeId) {
+      const employee = await Employee.findOne({ _id: employeeId, isActive: true })
+        .select("-__v")
+        .populate("user", "name email role")
+        .populate({
+          path: "manager",
+          populate: { path: "user", select: "name" },
+          select: "designation",
+        });
+
+      if (!employee) {
+        return res.status(404).json({
+          success: false,
+          message: "Employee record not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: employee,
+      });
+    }
+
     const employees = await Employee.find({ isActive: true })
       .select("-__v")
       .populate("user", "name email role")
@@ -108,109 +153,10 @@ export const getAllEmployees = async (req, res) => {
   }
 };
 
-export const getMyProfile = async (req, res) => {
-  try {
-    const employee = await Employee.findOne({ user: req.user.id, isActive: true })
-      .select("-__v")
-      .populate("user", "name email role")
-      .populate({
-        path: "manager",
-        populate: { path: "user", select: "name email" },
-        select: "designation",
-      });
-
-    if (!employee) {
-      return res.status(404).json({
-        success: false,
-        message: "Employee profile not found for logged-in user",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      data: employee,
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      message: error.message || "Internal Server Error",
-    });
-  }
-};
-
-
-export const getMyTeam = async (req, res) => {
-  try {
-    const myEmployee = await Employee.findOne({ user: req.user.id, isActive: true }).select("-__v");
-
-    if (!myEmployee) {
-      return res.status(200).json({
-        success: true,
-        data: [],
-      });
-    }
-
-    const team = await Employee.find({ manager: myEmployee._id, isActive: true })
-      .select("-__v")
-      .populate("user", "name email role");
-
-    return res.status(200).json({
-      success: true,
-      data: team,
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      message: error.message || "Internal Server Error",
-    });
-  }
-};
-
-export const getEmployeeById = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const employee = await Employee.findOne({ _id: id, isActive: true })
-      .select("-__v")
-      .populate("user", "name email role")
-      .populate({
-        path: "manager",
-        populate: { path: "user", select: "name" },
-        select: "designation",
-      });
-
-    if (!employee) {
-      return res.status(404).json({
-        success: false,
-        message: "Employee record not found",
-      });
-    }
-
-    if (req.user?.role === "manager") {
-      const myEmployee = await Employee.findOne({ user: req.user.id, isActive: true }).select("-__v");
-      const targetManagerId = employee.manager?._id
-        ? employee.manager._id.toString()
-        : employee.manager?.toString();
-
-      if (!myEmployee || targetManagerId !== myEmployee._id.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: "Not authorized to view this employee's details",
-        });
-      }
-    }
-
-    return res.status(200).json({
-      success: true,
-      data: employee,
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      message: error.message || "Internal Server Error",
-    });
-  }
-};
+export const getAllEmployees = getEmployees;
+export const getEmployeeById = getEmployees;
+export const getMyProfile = getEmployees;
+export const getMyTeam = getEmployees;
 
 export const updateEmployee = async (req, res) => {
   const { id } = req.params;

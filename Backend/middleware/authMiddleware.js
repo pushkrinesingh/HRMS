@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Employee from "../models/Employee.js";
 
 export const authMiddleware = (allowedRoles = []) => {
   const roles = typeof allowedRoles === "string" ? [allowedRoles] : (Array.isArray(allowedRoles) ? allowedRoles : []);
@@ -60,6 +61,7 @@ export const authMiddleware = (allowedRoles = []) => {
     }
 
     req.user = authenticatedUser;
+    req.employee = await Employee.findOne({ user: req.user.id, isActive: true }).select("-__v");
 
     if (roles.length > 0 && !roles.includes(req.user.role)) {
       return res.status(403).json({
@@ -70,4 +72,31 @@ export const authMiddleware = (allowedRoles = []) => {
 
     next();
   };
+};
+
+export const authorizeManagerAccess = async (req, res, next) => {
+  const targetId = req.params.id || req.query.id;
+  if (!targetId || targetId === "me" || req.user?.role === "admin") {
+    return next();
+  }
+
+  if (req.user?.role === "manager") {
+    const employee = await Employee.findOne({ _id: targetId, isActive: true }).select("-__v");
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee record not found",
+      });
+    }
+
+    const targetManagerId = employee.manager?._id?.toString() || employee.manager?.toString();
+    if (!req.employee || targetManagerId !== req.employee._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to view this employee's details",
+      });
+    }
+  }
+
+  next();
 };

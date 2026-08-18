@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import User from "../models/User.js";
+import Employee from "../models/Employee.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { createProfileForRole } from "../utils/createProfileForRole.js";
@@ -222,9 +223,20 @@ export const me = async (req, res) => {
       });
     }
 
+    const profile = await Employee.findOne({ user: user._id, isActive: true })
+      .select("-__v")
+      .populate({
+        path: "manager",
+        populate: { path: "user", select: "name email" },
+        select: "designation",
+      });
+
     return res.status(200).json({
       success: true,
-      data: user,
+      data: {
+        user,
+        profile: profile || null,
+      },
     });
   } catch (error) {
     return res.status(500).json({
