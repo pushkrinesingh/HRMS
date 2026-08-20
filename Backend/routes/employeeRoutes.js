@@ -10,7 +10,7 @@ import { authMiddleware, authorizeManagerAccess } from "../middleware/authMiddle
 const router = express.Router();
 
 router.post("/", authMiddleware("admin"), createEmployee);
-router.get("/", authMiddleware(), getEmployees);
+router.get("/", authMiddleware(), authorizeManagerAccess, getEmployees);
 router.put("/:id", authMiddleware("admin"), updateEmployee);
 router.delete("/:id", authMiddleware("admin"), deleteEmployee);
 

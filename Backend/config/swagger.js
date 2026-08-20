@@ -27,6 +27,14 @@ const swaggerDocument = {
     {
       name: "Employees",
       description: "Employee management endpoints"
+    },
+    {
+      name: "Attendance",
+      description: "Attendance management endpoints (check-in/check-out and attendance history/summaries)"
+    },
+    {
+      name: "Leave",
+      description: "Leave management endpoints (apply leave, manager decisions, leave balances and histories)"
     }
   ],
   components: {
@@ -85,6 +93,68 @@ const swaggerDocument = {
               hra: { type: "number" }
             }
           }
+        }
+      },
+      Attendance: {
+        type: "object",
+        properties: {
+          _id: { type: "string" },
+          employee: { type: "string" },
+          date: { type: "string", format: "date-time" },
+          checkIn: { type: "string", format: "date-time" },
+          checkOut: { type: "string", format: "date-time", nullable: true },
+          status: { type: "string", enum: ["present", "late", "half-day"] },
+          workingHours: { type: "number", nullable: true }
+        }
+      },
+      LeaveBalance: {
+        type: "object",
+        properties: {
+          _id: { type: "string" },
+          employee: { type: "string" },
+          year: { type: "integer" },
+          casual: {
+            type: "object",
+            properties: {
+              total: { type: "integer" },
+              used: { type: "integer" },
+              pending: { type: "integer" },
+              available: { type: "integer" }
+            }
+          },
+          sick: {
+            type: "object",
+            properties: {
+              total: { type: "integer" },
+              used: { type: "integer" },
+              pending: { type: "integer" },
+              available: { type: "integer" }
+            }
+          },
+          earned: {
+            type: "object",
+            properties: {
+              total: { type: "integer" },
+              used: { type: "integer" },
+              pending: { type: "integer" },
+              available: { type: "integer" }
+            }
+          }
+        }
+      },
+      Leave: {
+        type: "object",
+        properties: {
+          _id: { type: "string" },
+          employee: { type: "string" },
+          leaveType: { type: "string", enum: ["Casual", "Sick", "Earned", "LWP"] },
+          startDate: { type: "string", format: "date-time" },
+          endDate: { type: "string", format: "date-time" },
+          numberOfDays: { type: "integer" },
+          reason: { type: "string" },
+          status: { type: "string", enum: ["pending", "approved", "rejected"] },
+          approvedBy: { type: "string", nullable: true },
+          approverComment: { type: "string", nullable: true }
         }
       }
     }
@@ -467,6 +537,202 @@ const swaggerDocument = {
           404: {
             description: "Employee not found"
           }
+        }
+      }
+    },
+    "/api/attendance/toggle": {
+      post: {
+        tags: ["Attendance"],
+        summary: "Toggle attendance check-in / check-out",
+        description: "Automatically checks in if no record exists for today, or checks out if checked in but not yet checked out. Returns error 400 if already checked out for today.",
+        security: [{ cookieAuth: [] }],
+        responses: {
+          200: {
+            description: "Check-out recorded successfully"
+          },
+          201: {
+            description: "Check-in recorded successfully"
+          },
+          400: {
+            description: "Validation error, employee profile missing, or already checked out for today"
+          },
+          401: {
+            description: "Not authorized"
+          }
+        }
+      }
+    },
+    "/api/attendance": {
+      get: {
+        tags: ["Attendance"],
+        summary: "Get attendance records or monthly summary",
+        description: "Single consolidated endpoint. Returns self attendance history by default, team attendance if ?team=true, specific employee attendance if ?id=<id> or ?employeeId=<id>, or monthly summary aggregation if ?summary=true (optionally with ?month=YYYY-MM).",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "query",
+            required: false,
+            description: "Employee ID to fetch specific employee attendance",
+            schema: { type: "string" }
+          },
+          {
+            name: "employeeId",
+            in: "query",
+            required: false,
+            description: "Alias for employee ID",
+            schema: { type: "string" }
+          },
+          {
+            name: "team",
+            in: "query",
+            required: false,
+            description: "Set to 'true' to view manager direct report team members' attendance",
+            schema: { type: "string" }
+          },
+          {
+            name: "summary",
+            in: "query",
+            required: false,
+            description: "Set to 'true' to retrieve monthly aggregated summary (present, late, half-day, absent counts)",
+            schema: { type: "string" }
+          },
+          {
+            name: "month",
+            in: "query",
+            required: false,
+            description: "Target month for summary in YYYY-MM format (defaults to current month)",
+            schema: { type: "string" }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Attendance records or monthly summary"
+          },
+          403: {
+            description: "Forbidden - Permission denied"
+          },
+          404: {
+            description: "Employee record not found"
+          }
+        }
+      }
+    },
+    "/api/leave/apply": {
+      post: {
+        tags: ["Leave"],
+        summary: "Submit a new leave application",
+        description: "Applies for leave. Validates available balance (for non-LWP). Auto-approves immediately if the applicant's role is 'admin'.",
+        security: [{ cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["leaveType", "startDate", "endDate", "reason"],
+                properties: {
+                  leaveType: { type: "string", enum: ["Casual", "Sick", "Earned", "LWP"] },
+                  startDate: { type: "string", format: "date", example: "2026-08-25" },
+                  endDate: { type: "string", format: "date", example: "2026-08-27" },
+                  reason: { type: "string", example: "Personal work and doctor appointment" }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          201: { description: "Leave request submitted successfully (or auto-approved for admin)" },
+          400: { description: "Insufficient balance or invalid parameters" },
+          401: { description: "Not authorized" }
+        }
+      }
+    },
+    "/api/leave/{id}/decision": {
+      post: {
+        tags: ["Leave"],
+        summary: "Approve or reject a leave request (Admin/Manager)",
+        description: "Allows an applicant's direct manager or admin to approve or reject a pending leave request.",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            description: "Leave request ID",
+            schema: { type: "string" }
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["action"],
+                properties: {
+                  action: { type: "string", enum: ["approve", "reject"] },
+                  comment: { type: "string", example: "Approved. Enjoy your leave." }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: "Leave request decided successfully" },
+          400: { description: "Invalid action or request already decided" },
+          403: { description: "Forbidden - Not applicant's manager or admin" },
+          404: { description: "Leave request not found" }
+        }
+      }
+    },
+    "/api/leave": {
+      get: {
+        tags: ["Leave"],
+        summary: "Get leave requests or leave balances",
+        description: "Single consolidated endpoint. Returns self leave history by default, team leave requests if ?team=true, pending requests if ?pending=true, single leave if ?id=<leaveId>, or leave balance if ?balance=true (optionally with ?employeeId=<id>).",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "query",
+            required: false,
+            description: "Leave request ID to fetch specific leave details",
+            schema: { type: "string" }
+          },
+          {
+            name: "employeeId",
+            in: "query",
+            required: false,
+            description: "Employee ID (when combined with ?balance=true to fetch an employee's leave balance)",
+            schema: { type: "string" }
+          },
+          {
+            name: "team",
+            in: "query",
+            required: false,
+            description: "Set to 'true' to view manager direct report team members' leave requests",
+            schema: { type: "string" }
+          },
+          {
+            name: "pending",
+            in: "query",
+            required: false,
+            description: "Set to 'true' to filter leave requests by pending status (approval queue)",
+            schema: { type: "string" }
+          },
+          {
+            name: "balance",
+            in: "query",
+            required: false,
+            description: "Set to 'true' to retrieve annual leave balance with calculated available days",
+            schema: { type: "string" }
+          }
+        ],
+        responses: {
+          200: { description: "Leave records or balance details" },
+          403: { description: "Forbidden - Permission denied" },
+          404: { description: "Leave record or employee not found" }
         }
       }
     }
