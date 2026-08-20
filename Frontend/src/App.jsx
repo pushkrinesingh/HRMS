@@ -9,6 +9,10 @@ import Dashboard from "./pages/Dashboard";
 import AddEmployee from "./pages/AddEmployee";
 import EditEmployee from "./pages/EditEmployee";
 import CreateAdmin from "./pages/CreateAdmin";
+import Attendance from "./pages/Attendance";
+import TeamAttendance from "./pages/TeamAttendance";
+import Leave from "./pages/Leave";
+import ApplyLeave from "./pages/ApplyLeave";
 
 function App() {
   return (
@@ -21,6 +25,13 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/attendance" element={<Attendance />} />
+                <Route path="/leave" element={<Leave />} />
+                <Route path="/leave/apply" element={<ApplyLeave />} />
+
+                <Route element={<ProtectedRoute allowedRoles={["admin", "manager"]} />}>
+                  <Route path="/team-attendance" element={<TeamAttendance />} />
+                </Route>
 
                 <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
                   <Route path="/employees/add" element={<AddEmployee />} />

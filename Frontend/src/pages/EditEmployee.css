@@ -5,8 +5,9 @@
 .edit-employee-card {
   background-color: var(--panel-bg);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 28px;
+  border-top: 3px solid var(--primary-accent);
+  border-radius: 8px;
+  padding: 32px;
 }
 
 .edit-employee-title {
@@ -14,12 +15,25 @@
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 6px;
+  letter-spacing: -0.2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.edit-employee-title::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 16px;
+  background-color: var(--primary-accent);
+  border-radius: 2px;
 }
 
 .edit-employee-subtitle {
   font-size: 13px;
   color: var(--text-secondary);
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 14px;
+  padding-bottom: 16px;
 }

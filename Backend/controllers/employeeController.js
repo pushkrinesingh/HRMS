@@ -196,20 +196,30 @@ export const updateEmployee = async (req, res) => {
 
 export const deleteEmployee = async (req, res) => {
   const { id } = req.params;
+  const session = await mongoose.startSession();
 
   try {
-    const employee = await Employee.findOneAndUpdate(
-      { _id: id, isActive: true },
-      { isActive: false, updatedBy: req.user?.id || null },
-      { new: true }
-    ).select("-__v");
+    await session.withTransaction(async () => {
+      const employee = await Employee.findOne({ _id: id, isActive: true }).session(session);
 
-    if (!employee) {
-      return res.status(404).json({
-        success: false,
-        message: "Employee record not found",
-      });
-    }
+      if (!employee) {
+        const error = new Error("Employee record not found");
+        error.status = 404;
+        throw error;
+      }
+
+      employee.isActive = false;
+      employee.updatedBy = req.user?.id || null;
+      await employee.save({ session });
+
+      if (employee.user) {
+        await User.findByIdAndUpdate(
+          employee.user,
+          { isActive: false, updatedBy: req.user?.id || null },
+          { session }
+        );
+      }
+    });
 
     return res.status(200).json({
       success: true,
@@ -220,6 +230,8 @@ export const deleteEmployee = async (req, res) => {
       success: false,
       message: error.message || "Internal Server Error",
     });
+  } finally {
+    await session.endSession();
   }
 };
 

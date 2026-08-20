@@ -13,7 +13,7 @@
 
 .layout-main {
   flex: 1;
-  padding: 28px 32px;
+  padding: 32px;
   background-color: var(--bg-color);
   overflow-y: auto;
 }

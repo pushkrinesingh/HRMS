@@ -6,6 +6,8 @@ import "./Sidebar.css";
 const Sidebar = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const isManager = user?.role === "manager";
+  const isManagerOrAdmin = isAdmin || isManager;
 
   return (
     <aside className="sidebar">
@@ -22,6 +24,29 @@ const Sidebar = () => {
           className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}
         >
           Employees
+        </NavLink>
+
+        <NavLink
+          to="/attendance"
+          className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}
+        >
+          Attendance
+        </NavLink>
+
+        {isManagerOrAdmin && (
+          <NavLink
+            to="/team-attendance"
+            className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}
+          >
+            Team Attendance
+          </NavLink>
+        )}
+
+        <NavLink
+          to="/leave"
+          className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}
+        >
+          Leave
         </NavLink>
 
         {isAdmin && (

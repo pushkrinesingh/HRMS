@@ -42,11 +42,11 @@
   --text-secondary: #71717A;
   --border-color: #E4E4E7;
   --border-muted: #F0F0F3;
-  --primary-accent: #689BF2;
-  --primary-accent-dark: #4A83EC;
+  --primary-accent: #A1C4FD;
+  --primary-accent-dark: #7FAAF5;
   --primary-accent-bg: #A1C4FD;
   --primary-accent-text: #121212;
-  --secondary-accent: #D48900;
+  --secondary-accent: #EC9F05;
   --button-bg: #EDEDF0;
   --button-text: #18181B;
   --button-hover: #E2E2E8;
@@ -84,6 +84,7 @@ body {
 a {
   color: var(--primary-accent);
   text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 a:hover {
@@ -93,12 +94,18 @@ a:hover {
 button {
   cursor: pointer;
   font-family: inherit;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 input, select {
-  border-radius: 4px;
+  border-radius: 6px;
   font-family: inherit;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary-accent);
+}
+
