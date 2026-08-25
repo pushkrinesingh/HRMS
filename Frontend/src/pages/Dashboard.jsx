@@ -11,21 +11,29 @@ const Dashboard = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const isAdmin = user?.role === "admin";
+  const isManager = user?.role === "manager";
+  const isEmployee = user?.role === "employee";
 
   const fetchEmployees = async () => {
+    if (isEmployee) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
-      const res = await getEmployeesApi();
+      const params = isManager ? { team: "true" } : {};
+      const res = await getEmployeesApi(params);
       if (res.success && Array.isArray(res.data)) {
         setEmployees(res.data);
       } else {
         setEmployees([]);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to load employees list");
+      setError(err.response?.data?.message || "Failed to load employee records");
     } finally {
       setLoading(false);
     }
@@ -33,7 +41,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [user?.role]);
 
   const handleViewDetail = async (id) => {
     setLoadingDetail(true);
@@ -65,10 +73,16 @@ const Dashboard = () => {
     }
   };
 
+  const getHeaderTitle = () => {
+    if (isAdmin) return "Employee Directory";
+    if (isManager) return "My Team";
+    return "My Profile";
+  };
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
-        <h1 className="dashboard-title">Employee Directory</h1>
+        <h1 className="dashboard-title">{getHeaderTitle()}</h1>
         {isAdmin && (
           <Link to="/employees/add" className="btn-primary">
             + Add Employee
@@ -78,10 +92,57 @@ const Dashboard = () => {
 
       {error && <div className="login-error">{error}</div>}
 
-      {loading ? (
-        <div style={{ color: "var(--text-secondary)", padding: "20px 0" }}>Loading employee records...</div>
+      {isEmployee ? (
+        <div className="profile-card">
+          <div className="detail-grid">
+            <div className="detail-item">
+              <span className="detail-label">Name</span>
+              <span className="detail-value">{user?.name || "N/A"}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Email</span>
+              <span className="detail-value">{user?.email || "N/A"}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Role</span>
+              <span className="detail-value">
+                <span className={`badge badge-role-${user?.role || "employee"}`}>
+                  {user?.role || "employee"}
+                </span>
+              </span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Department</span>
+              <span className="detail-value">{profile?.department || "N/A"}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Designation</span>
+              <span className="detail-value">{profile?.designation || "N/A"}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Manager</span>
+              <span className="detail-value">
+                {profile?.manager?.user?.name || profile?.manager?.designation || "None"}
+              </span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Joining Date</span>
+              <span className="detail-value">
+                {profile?.joiningDate
+                  ? new Date(profile.joiningDate).toLocaleDateString()
+                  : "N/A"}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : loading ? (
+        <div style={{ color: "var(--text-secondary)", padding: "20px 0" }}>
+          Loading employee records...
+        </div>
       ) : employees.length === 0 ? (
-        <div style={{ color: "var(--text-secondary)", padding: "20px 0" }}>No employee records found.</div>
+        <div style={{ color: "var(--text-secondary)", padding: "20px 0" }}>
+          No employee records found.
+        </div>
       ) : (
         <div className="table-wrapper">
           <table className="employee-table">

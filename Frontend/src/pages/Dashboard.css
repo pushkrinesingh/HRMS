@@ -212,6 +212,15 @@
   padding: 32px;
 }
 
+.profile-card {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-top: 3px solid var(--primary-accent);
+  border-radius: 8px;
+  max-width: 580px;
+  padding: 32px;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
