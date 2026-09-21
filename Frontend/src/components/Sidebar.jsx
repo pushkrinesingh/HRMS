@@ -20,13 +20,6 @@ const Sidebar = () => {
         </NavLink>
 
         <NavLink
-          to="/dashboard"
-          className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}
-        >
-          Employees
-        </NavLink>
-
-        <NavLink
           to="/attendance"
           className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}
         >
