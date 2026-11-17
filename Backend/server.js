@@ -7,6 +7,8 @@ import authRoutes from "./routes/authRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
+import payrollRoutes from "./routes/payrollRoutes.js";
+import { initPayrollCron } from "./jobs/payrollCron.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
@@ -15,13 +17,15 @@ import swaggerDocument from "./config/swagger.js";
 const app = express();
 
 await ConnectToDB();
+initPayrollCron();
 
 const allowedOrigin = process.env.NODE_ENV === "production" ? process.env.FRONTEND_URL : "http://localhost:5173";
 
 app.use(cors({
     origin: allowedOrigin,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    exposedHeaders: ["Content-Disposition"]
 }));
 
 app.use(express.json());
@@ -32,6 +36,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/leave", leaveRoutes);
+app.use("/api/payroll", payrollRoutes);
 
 app.get("/api/health", (req, res) => {
     res.status(200).json({ success: true, status: "OK", message: "Server is healthy" });

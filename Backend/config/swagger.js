@@ -35,6 +35,10 @@ const swaggerDocument = {
     {
       name: "Leave",
       description: "Leave management endpoints (apply leave, manager decisions, leave balances and histories)"
+    },
+    {
+      name: "Payroll",
+      description: "Payroll management endpoints (salary structure configuration, monthly automated and on-demand payslip generation, and payslip history)"
     }
   ],
   components: {
@@ -155,6 +159,42 @@ const swaggerDocument = {
           status: { type: "string", enum: ["pending", "approved", "rejected"] },
           approvedBy: { type: "string", nullable: true },
           approverComment: { type: "string", nullable: true }
+        }
+      },
+      SalaryStructure: {
+        type: "object",
+        properties: {
+          _id: { type: "string" },
+          employee: { type: "string", description: "Employee ID" },
+          basic: { type: "number", description: "Basic monthly salary" },
+          hra: { type: "number", description: "House Rent Allowance" },
+          allowances: { type: "number", description: "Flat additional allowances" },
+          pfPercent: { type: "number", description: "PF deduction percentage applied to basic (default: 12)" },
+          taxPercent: { type: "number", description: "Flat tax percentage applied to gross pay (default: 10, simplified flat-rate model)" },
+          createdBy: { type: "string", nullable: true },
+          updatedBy: { type: "string", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" }
+        }
+      },
+      Payslip: {
+        type: "object",
+        properties: {
+          _id: { type: "string" },
+          employee: { type: "string", description: "Employee ID" },
+          month: { type: "integer", minimum: 1, maximum: 12, description: "Payslip month (1-12)" },
+          year: { type: "integer", description: "Payslip year" },
+          basic: { type: "number", description: "Basic salary snapshot at generation" },
+          hra: { type: "number", description: "HRA snapshot at generation" },
+          allowances: { type: "number", description: "Allowances snapshot at generation" },
+          grossPay: { type: "number", description: "Gross pay (basic + hra + allowances)" },
+          pfDeduction: { type: "number", description: "Provident Fund deduction (basic * pfPercent / 100)" },
+          taxDeduction: { type: "number", description: "Tax deduction (grossPay * taxPercent / 100, simplified flat-rate model)" },
+          totalDeductions: { type: "number", description: "Total deductions (pfDeduction + taxDeduction)" },
+          netPay: { type: "number", description: "Net take-home pay (grossPay - totalDeductions)" },
+          generatedAt: { type: "string", format: "date-time" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" }
         }
       }
     }
@@ -733,6 +773,162 @@ const swaggerDocument = {
           200: { description: "Leave records or balance details" },
           403: { description: "Forbidden - Permission denied" },
           404: { description: "Leave record or employee not found" }
+        }
+      }
+    },
+    "/api/payroll/salary-structure": {
+      post: {
+        tags: ["Payroll"],
+        summary: "Upsert employee salary structure (Admin only)",
+        description: "Creates a new salary structure if none exists for the active employee, or updates the existing one. Synchronizes basic and hra with the employee record.",
+        security: [{ cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["employeeId", "basic", "hra"],
+                properties: {
+                  employeeId: { type: "string", description: "Active employee ID" },
+                  basic: { type: "number", example: 50000, description: "Basic monthly salary" },
+                  hra: { type: "number", example: 20000, description: "House Rent Allowance" },
+                  allowances: { type: "number", example: 5000, description: "Flat allowances (default: 0)" },
+                  pfPercent: { type: "number", example: 12, description: "PF deduction percentage on basic (default: 12)" },
+                  taxPercent: { type: "number", example: 10, description: "Flat tax percentage on gross pay (default: 10, simplified flat-rate model)" }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: "Salary structure updated successfully" },
+          201: { description: "Salary structure created successfully" },
+          400: { description: "Validation error" },
+          403: { description: "Forbidden - Admin access required" },
+          404: { description: "Active employee not found" }
+        }
+      },
+      get: {
+        tags: ["Payroll"],
+        summary: "Get salary structure",
+        description: "Consolidated endpoint. Without parameters, returns the authenticated user's own salary structure. With ?employeeId=<id>, allows admin to view any employee's structure.",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          {
+            name: "employeeId",
+            in: "query",
+            required: false,
+            description: "Employee ID to fetch salary structure (Admin only)",
+            schema: { type: "string" }
+          }
+        ],
+        responses: {
+          200: { description: "Salary structure details" },
+          403: { description: "Forbidden - Permission denied" },
+          404: { description: "Salary structure not found" }
+        }
+      }
+    },
+    "/api/payroll/generate": {
+      post: {
+        tags: ["Payroll"],
+        summary: "Trigger monthly payslip generation (Admin only / Manual Testing)",
+        description: "Manually triggers the monthly payslip generation routine on demand without waiting for the scheduled 1st-of-month cron job. Iterates through all active employees with an assigned salary structure and generates snapshot payslips for the specified (or current) month and year. Skips any employees who already have a payslip for that period.",
+        security: [{ cookieAuth: [] }],
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  month: { type: "integer", minimum: 1, maximum: 12, example: 8, description: "Target month (1-12, defaults to current month)" },
+                  year: { type: "integer", example: 2026, description: "Target year (defaults to current year)" }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: "Payslip generation summary (generated, skipped, totalEligible)" },
+          400: { description: "Invalid month or year" },
+          403: { description: "Forbidden - Admin access required" }
+        }
+      }
+    },
+    "/api/payroll/payslips": {
+      get: {
+        tags: ["Payroll"],
+        summary: "Get payslips history or specific payslip",
+        description: "Consolidated endpoint for payslip access. Without params, returns the logged-in user's own payslip history (most recent first). With ?id=<payslipId>, returns a specific payslip (Admin sees any; employee/manager sees only their own; no manager-team access). With ?id=<payslipId>&format=pdf, downloads the payslip as a professional A4 PDF (returns application/pdf). With ?employeeId=<id>, allows admin to view any employee's full payslip history. Optional ?month=X and ?year=Y can be used to filter by pay period.",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "query",
+            required: false,
+            description: "Payslip ID to fetch specific payslip details (self or admin only)",
+            schema: { type: "string" }
+          },
+          {
+            name: "format",
+            in: "query",
+            required: false,
+            description: "Response format. Set to 'pdf' to download the payslip as an A4 PDF document (requires 'id' query parameter; returns application/pdf)",
+            schema: { type: "string", enum: ["pdf"] }
+          },
+          {
+            name: "employeeId",
+            in: "query",
+            required: false,
+            description: "Employee ID to fetch full payslip history (Admin only)",
+            schema: { type: "string" }
+          },
+          {
+            name: "month",
+            in: "query",
+            required: false,
+            description: "Filter payslips by month (1-12)",
+            schema: { type: "integer", minimum: 1, maximum: 12 }
+          },
+          {
+            name: "year",
+            in: "query",
+            required: false,
+            description: "Filter payslips by year (e.g. 2026)",
+            schema: { type: "integer" }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Payslip records (JSON) or downloadable payslip file (application/pdf)",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean" },
+                    data: {
+                      oneOf: [
+                        { $ref: "#/components/schemas/Payslip" },
+                        { type: "array", items: { $ref: "#/components/schemas/Payslip" } }
+                      ]
+                    }
+                  }
+                }
+              },
+              "application/pdf": {
+                schema: {
+                  type: "string",
+                  format: "binary"
+                }
+              }
+            }
+          },
+          400: { description: "Invalid month/year parameter or format=pdf requested without id" },
+          403: { description: "Forbidden - Permission denied" },
+          404: { description: "Payslip not found" }
         }
       }
     }
